@@ -1,0 +1,152 @@
+ansible -m user -a "name=newbie uid=4000 state=present" servera.lab.example.com -u devops -b
+
+################################################################
+
+.vimrc
+
+au! BufNewFile,BufReadPost *.{yaml,yml} set filetype=yaml foldmethod=indent
+autocmd FileType yaml setlocal ts=2 sts=2 sw=2 expandtab
+################################################################
+
+
+
+- name:  configure important user consistency
+
+################################################################
+
+  hosts: servera.lab.example.com
+
+
+################################################################
+
+  hosts:
+	- servera
+	- serverb
+	- serverc
+
+
+################################################################
+  become: true
+  become_method: sudo
+  become_user: privileged_user
+
+################################################################
+
+  tasks:
+
+################################################################
+
+        - name: newbiew exists with UID 4000
+          user:
+                    name: newbie1
+                    uid: 4001
+                    state: present
+
+################################################################
+
+
+    	- name: httpd package is present
+          yum:
+        	name: httpd
+        	state: latest					or present
+        	status: present
+
+################################################################
+   	
+	- name: lastest version of httpd and firewalld installed
+   	  yum:
+   		name:
+          		- httpd
+          		- firewalld
+			- mariadb-server
+			- php
+			- php-mysqlnd
+
+
+        	state: latest
+
+################################################################
+
+        - name: web server is start & enabled
+          service:
+                 name: httpd					firewalld	mariadb
+		 enabled: true
+		 state: started
+         
+
+################################################################
+
+	- name: firewalld permits access to httpd service
+     	  firewalld:
+        	service: http
+        	permanent: true
+        	state: enabled
+        	immediate: yes
+
+
+
+
+################################################################
+
+	- name: correct index.html is present
+      	  copy:
+        	src: files/index.html
+        	dest: /var/www/html/index.html
+
+################################################################
+
+
+   	- name: test html page is installed
+     	  copy:
+        	content: "Welcome to the example.com intranet!\n"
+        	dest: /var/www/html/page2.html
+
+################################################################
+
+        - name: Non-idempotent approach with shell module
+          shell: echo "nameserver 192.0.2.1" > /etc/resolv.conf
+
+
+################################################################
+	
+	- name: test php page is installed
+	  get_url:
+		url: "http://materials.example.com/labs/playbook-review/index.php"
+		dest: /var/www/html/index.php
+		mode: 0644
+
+
+
+################################################################
+  
+        - name: server.example.com in /etc/hosts
+          lineinfile:
+                path: /etc/hosts
+                line: '172.25.254.254 class.example.com class'
+                state: present
+
+################################################################
+
+  	 - name: connect to intranet web server
+     	   uri:
+        	url: http://servera.lab.example.com
+        	return_content: yes
+        	status_code: 200
+
+################################################################
+
+	fold_newlines: >
+		This is an example 
+		of a long string, 
+		that will become 
+		a single sentence once folded.
+
+################################################################
+
+ansible-playbook  	sample3-webserver.yml 	 --syntax-check		
+ansible-playbook 	sample2-service-up 				-u devops -b
+ansible-playbook  	sample3-webserver.yml 				-u devops -b -v
+ansible-playbook   	webserver.yml 			-C 		-u devops -b
+ansible-doc -l
+ansible-doc yum
+ansible-doc -s yum

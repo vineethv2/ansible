@@ -1,0 +1,768 @@
+
+************************************************************
+LAB 1:
+************************************************************
+Example1:
+
+	[student@workstation proj1]$vim /home/student/c4/proj1/Sample1-create_users.yml 
+	---
+	- name: create user accounts for all our servers - Example 1
+	  hosts: all
+	########################
+	  become: True
+	  remote_user: devops
+	########################
+	  vars:											
+		myuser1: tom
+		mypasswd1: $5$fdsdfsd$sdfsdfsdsdfsdfsdfsdf
+
+	  vars_files:
+		- vars/myuser.yml
+
+	##########################
+	  tasks:
+		- name: create user from variable						
+		  user:
+			name: "{{ myuser1 }}"
+			password: "{{ mypasswd1 }}"
+	
+
+		- name: Creating user from secret.yml						
+		  user:
+			name: "{{ myuser2 }}"
+			password: "{{ mypasswd2 }}"
+
+
+	###########################
+
+	[student@workstation proj1]$vim vars/myuser.yml
+
+		myuser2: mike
+		mypasswd2: $5$fdsdfsd$sdfsdfsdsdfsdfsdfsdf
+
+	###########################
+	
+	[student@workstation proj1]#openssl passwd -6 -salt MZcUmP2 redhat
+
+
+
+
+
+
+
+###########################
+Example2:
+###########################
+
+	[student@workstation proj1]$vim /home/student/c4/proj1/Sample2-WebServer.yml 
+
+		Install a Web Server
+			Variable: package name and content
+		
+
+
+
+
+
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+2. Add Variable in inventory
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+Example3:
+
+	[student@workstation proj1]$vim /home/student/c4/proj1/Sample2-Webservers.yml
+	
+	---
+	- name: Demo of variable
+	  hosts: all
+	  tasks:
+		- name: install the package {{ mypackage }}
+		  yum:
+			name: {{ mypackage }}
+			state: latest
+	
+
+
+
+
+
+
+
+
+
+Method 1 & 2:
+
+
+	[student@workstation proj1]$vim inventory
+
+	
+		serverc.lab.example.com mypackage=vsftpd
+
+		[webservers]
+		servera.lab.example.com
+		mypackage=httpd
+	
+
+		[dbservers]	
+		serverb.lab.example.com
+		mypackage=mariadb-server
+
+		[servers:children]
+		webservers
+		dbservers
+
+		[servers:vars]
+		myuser1=joe
+		ansible_user=devops
+		anisble_become=yes
+  					Some other system it may be apache
+
+
+		To test:
+
+			[student@workstation proj1]$ansible-playbook 	Sample2-Webservers.yml	
+
+
+
+	
+Method 3: (group_vars & host_vars )
+
+
+	[student@workstation proj1]$group_vars/dbservers			[student@workstation proj1]$host_vars/serverd.lab.example.com
+
+							
+				mypackage: mariadb-server						mypackage: postfix
+
+
+Method 4:
+
+	
+	[student@workstation proj1]$ansible-playbook 	Sample2-Webservers.yml						 -e "mypackage=mutt"
+	[student@workstation proj1]$ansible-playbook 	Sample2-Webservers.yml		--limit=serverb.example.com 	 -e "mypackage=mutt"
+
+
+
+
+Method 5:
+
+		users:
+			bjones:
+			first_name: Bob
+			last_name: Jones
+			home_dir: /users/bjones
+		acook:
+			first_name: Anne
+			last_name: Cook
+			home_dir: /users/acook
+
+
+
+		To call:	users.bjones.first_name
+				users['bjones']['first_name']		--> python 
+
+
+
+
+
+
+
+
+
+############################################################
+
+	[student@workstation proj1]$ansible-playbook 	Sample1-create_users.yml 	 					--syntax-check
+	[student@workstation proj1]$ansible-playbook 	Sample1-create_users.yml 					
+
+
+
+	[student@workstation proj1]$ansible-playbook 	Sample2-Webservers.yml							--syntax-check
+	[student@workstation proj1]$ansible-playbook 	Sample2-Webservers.yml
+
+
+
+	[student@workstation proj1]$ansible					servers 		-a 'yum list httpd'		[-m command]
+	[student@workstation proj1]$ansible					servers 		-a 'yum list mariadb-server'	[-m command]
+	[student@workstation proj1]$ansible					serverc.lab.example.com	-a 'yum list vsftpd'		[-m command]
+
+
+
+
+
+
+
+
+
+	THe CLI will always override the host,
+		host will override a group
+		group will override whats in playbook
+	
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+	 Register variable
+
+		#aniable-doc debug
+
+
+	[student@workstation proj1]$vim /home/student/c4/proj1/Sample2-Webservers.yml
+	
+		---
+		- name: Demo of variable
+		  hosts: all
+	 	  tasks:
+			- name: install the package {{ package }}
+	  	  	  yum:
+				name: {{ package }}
+				state: latest
+   		  	  register: myoutput
+
+
+			- name: show Output result
+		  	  debug: 
+				var: myoutput						output.results
+
+
+
+
+
+Do LAB 1: In Book
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+
+	export EDITOR=nano
+
+
+	[student@workstation proj2]$cp /home/student/c4/proj1/Sample1-create_users.yml  /home/student/c4/proj2/Sample1-create_users.yml 
+
+	[student@workstation proj2]$cp /home/student/c4/proj1/vars/myuser.yml		/home/student/c4/proj2/vars/myuser-secret.yml
+
+
+
+	############################
+
+
+
+	[student@workstation proj2]$ ansible-vault 	create 		vars/secret1.yml								--> 
+	[student@workstation proj2]$ ansible-vault 	create 		vars/secret1.yml			--vault-password-file=vault-pass 
+	[student@workstation proj2]$ ansible-vault 	view 		vars/secret1.yml
+	[student@workstation proj2]$ ansible-vault 	edit		vars/secret1.yml
+	[student@workstation proj2]$ ansible-vault 	encrypt 	vars/secret1.yml vars/secret2.yml		
+	[student@workstation proj2]$ ansible-vault 	decrypt 	vars/secret1.yml 			--output=secret1-decrypted.yml
+	[student@workstation proj2]$ ansible-vault 	rekey 		vars/secret1.yml
+	[student@workstation proj2]$ ansible-vault 	rekey  		vars/secret1.yml		--new-vault-password-file=NEW_VAULT_PASSWORD_FILE 
+
+	#############################
+
+	[student@workstation proj2]$ ansible-vault 	encrypt 	vars/myuser-secret.yml
+			
+
+
+	[student@workstation proj2]$vim /home/student/c4/proj2/Sample1-create_users.yml 
+	---
+	- name: create user accounts with enc file
+	  hosts: all
+	########################
+	  become: True
+	  remote_user: devops
+	########################
+	  vars_files:
+		- vars/myuser-secret
+
+	##########################
+	  tasks:
+		
+
+		- name: Creating user from myuser-secret.yml						
+		  user:
+			name: "{{ myuser2 }}"
+			password: "{{ mypasswd2 }}"
+
+
+	###########################
+
+	[student@workstation proj2]$vim vars/myuser-secret.yml
+
+		myuser2: tom
+		mypasswd2: $5$fdsdfsd$sdfsdfsdsdfsdfsdfsdf
+
+	###########################		
+
+
+
+	###########################
+
+	[student@workstation proj2]$ansible-playbook 	Sample1-create_users									--> Error
+	[student@workstation proj2]$ansible-playbook 	Sample1-create_users	  --ask-vault-pass 		--syntax-check
+
+	###########################
+
+	[student@workstation proj2]$ansible-playbook 	Sample1-create_users		--vault-id @prompt 
+	[student@workstation proj2]$ansible-playbook 	Sample1-create_users		--vault-id one@prompt --vault-id two@prompt 
+
+	-OR-
+
+	[student@workstation proj2]$echo 'redhat' > vault-pass
+	[student@workstation proj2]$chmod 0600 vault-pass
+
+	[student@workstation proj2]$ansible-playbook  Sample1-create_users		--vault-password-file=vault-pass 
+
+
+	###########################
+
+	[student@workstation proj2]$$ ssh -o PreferredAuthentications=password tom@servera.lab.example.com
+
+	###########################
+
+
+	[student@workstation proj2]$ls -lR
+
+
+
+
+Do the lab excersie 
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+LAB 3
+
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+####################################################################################################################################################################################
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+************************************************************
+SECTION 3: FACTS
+************************************************************
+####################################################################################################################################################################
+
+Example1:
+
+
+	[student@workstation data-facts]$ansible servera.lab.example.com -m setup
+
+	[student@workstation data-facts]$ansible 	servera.lab.example.com 	-m setup 	-a 'filter=ansible_*'
+	[student@workstation data-facts]$ansible 	servera.lab.example.com 	-m setup 	-a 'filter=ansible_eth0'
+	[student@workstation data-facts]$ansible 	webserver 		 	-m setup	-a 'filter=ansible_user*'
+	
+
+	##########################################################################################
+
+
+Example 2:
+
+	[student@workstation data-facts]$ ansible 	webserver	 		-m setup
+	[student@workstation data-facts]$ ansible 	servera.lab.example.com 	-m setup 	-a 'filter=ansible_local'
+
+
+
+	[student@workstation data-facts]$ ansible 	webserver	 		-m setup	-a "filter=ansible_local	--> facts not present
+	
+
+	####################################################
+	[student@servera data-facts]$vim /etc/anisble/fact.d/demo1.fact
+
+					[packages]
+					web_pkg = vsftpd
+	
+
+	[student@servera data-facts]$vim /etc/anisble/fact.d/demo2.fact
+
+					[general]
+					package = httpd
+					service = httpd
+					state = started
+					enabled = true
+
+
+
+	####################################################
+
+	[student@workstation data-facts]$ansible 	servera.lab.example.com 	-m setup 	-a 'filter=ansible_local'
+	[student@workstation data-facts]$ ansible 	webserver	 		-m setup	-a "filter=ansible_local	--> Now present
+
+
+
+	####################################################
+	[student@workstation data-facts]$vim playbook.yml 
+
+
+		---
+		- name: Install Apache and starts the service
+		  hosts: servera.lab.example.com
+		  gather_facts: no											--> To not to gather facts
+		  tasks:	
+			- name: Install package from demo1
+			  yum:
+				name:    "{{ ansible_facts['ansible_local']['[demo1']['[packages']['web_pkg']}}"   			
+				state: latest
+
+
+	
+			- name: Install package from demo2
+		  	  yum:
+				name:    "{{ ansible_facts['ansible_local']['demo2']['general'] ['package'] }}"   	or
+				name:    "{{ ansible_local.demo2.general.package }}"
+				state: latest
+
+
+			- name: Start the service
+		  	  service:
+				name: 	 "{{ ansible_facts['ansible_local']['demo2']['general'] ['service'] }}"
+				state: 	 "{{ ansible_facts['ansible_local']['demo2']['general'] ['state'] }}"
+	    			enabled: "{{ ansible_facts['ansible_local']['demo2']['general'] ['enabled'] }}"
+
+
+	
+	####################################################
+
+	[student@workstation data-facts]$ ansible-playbook 			setup_facts.yml				--syntax-check 	
+	[student@workstation data-facts]$ ansible-playbook 			setup_facts.yml
+
+	####################################################
+
+	Test:
+
+
+	[student@workstation data-facts]$ ansible 		servera.lab.example.com 	-m command 		-a 'systemctl status httpd'
+
+
+	[student@workstation data-facts]$ ansible-playbook 		playbook.yml						--syntax-check
+	[student@workstation data-facts]$ ansible-playbook 		playbook.yml
+
+
+
+	[student@workstation data-facts]$ ansible localhost -m debug -a 'var=hostvars["localhost"]'
+
+
+
+
+
+Example 3:
+
+
+
+	##########################################################################################
+
+	[student@workstation data-facts]$vim /home/student/data-facts/setup_facts.yml
+
+
+
+		---
+		- name: Install remote facts
+		  hosts: webservers
+		  vars:
+		  	remote_dir: /etc/ansible/facts.d
+		  	facts_file: custom.fact				--> This was created in prev step
+		  tasks:
+			- name: Create the remote directory
+			  file:							--> ansible-doc file
+			  	state: directory
+			  	recurse: yes					--> mkdir -p option
+			  	path: "{{ remote_dir }}"
+
+			- name: Install the new facts
+			  copy:
+				src: "{{ facts_file }}"
+				dest: "{{ remote_dir }}"
+
+	####################################################
+
+	[student@workstation data-facts]$vim /home/student/data-facts/custom.fact
+
+
+					[general]
+					package = httpd
+					service = httpd
+					state = started
+					enabled = true
+
+
+	####################################################
+
+
+
+
+
+####################################################################################################################################################################
+************************************************************
+LAB 2 & 4:
+************************************************************
+####################################################################################################################################################################
+
+
+
+
+	---
+	- name: Deploy and start Apache HTTPD service
+	  hosts: webserver
+	  vars:
+		web_pkg: httpd
+		ssl_pkg: mod_ssl
+		firewall_pkg: firewalld
+		python_pkg: python3-PyMySQL
+
+		web_service: httpd
+
+		firewall_service: firewalld
+
+		rule: http
+		##########################################################
+
+		httpdconf_src: files/httpd.conf
+		httpdconf_dest: /etc/httpd/conf/httpd.conf
+
+		
+
+		secrets_dir: /etc/httpd/secrets
+
+
+		secrets_src: files/htpasswd
+		secrets_dest: "{{ secrets_dir }}/htpasswd"
+
+
+		htaccess_src: files/.htaccess
+
+		
+		web_root: /var/www/html
+
+
+
+	  ############################################################
+
+	  tasks:
+		- name: Required packages are installed and up to date
+	 	  yum:
+		  name:
+			- "{{ web_pkg }}"							httpd
+			- "{{ firewall_pkg }}"							firewalld
+			- "{{ python_pkg }}"							python3-PyMySQL
+			- "{{ ssl_pkg }}"							mod_ssl
+		
+		 state: latest			or	installed
+
+		 register: install_result
+
+			- debug: var=install_result
+
+
+
+	 ############################################################	
+
+		- name: Web content is in place
+	  	  copy:
+			content: "Example web content"
+			dest: /var/www/html/page1.html
+	 ##########################################################
+
+		- name: configure web service
+	  	  copy:
+			src: "{{ httpdconf_src }}"							files/httpd.conf
+			dest: "{{ httpdconf_dest }}"							/etc/httpd/conf/httpd.conf
+			owner: root
+			group: root
+			mode: 0644
+
+		- name: secrets directory exists
+	  	  file:
+			path: "{{ secrets_dir }}"							/etc/httpd/secrets
+			state: directory
+			owner: apache
+			group: apache
+			mode: 0500
+
+		- name: htpasswd file exists
+	  	  copy:
+			src: "{{ secrets_src }}"							files/htpasswd
+			dest: "{{ secrets_dest }}"							"{{ secrets_dir }}/htpasswd"
+			owner: apache
+			group: apache
+			mode: 0400
+
+
+		- name: .htaccess file installed in docroot
+	  	  copy:
+			src: "{{ htaccess_src }}"							files/.htaccess
+			dest: "{{ web_root }}/.htaccess"						/var/www/html
+			owner: apache
+			group: apache
+			mode: 0400
+
+
+		- name: create index.html
+	  	  copy:
+			content: "{{ ansible_facts['fqdn'] }} ({{ ansible_facts['default_ipv4']['address'] }}) has been customized by Ansible.\n"
+			dest: "{{ web_root }}/index.html"
+
+	############################################################
+			1								2							
+		- name: The {{ firewall_service }} service is started and enabled	 The {{ web_service }} service is started and enabled
+	  	  service:
+			name: "{{ firewall_service }}"						"{{ web_service }}"					
+			enabled: true
+			state: started
+
+	############################################################
+			1								2
+
+		- name: The firewall port for {{ rule }} is open
+	  	  firewalld:
+			service: "{{ rule }}"							https
+			permanent: true
+			immediate: true
+			state: enabled
+
+	############################################################
+	PLAY 2
+	###########################################################
+
+	- name: Verify the Apache service
+	  hosts: localhost
+	  become: false
+	  vars:
+		web_user: guest
+ 	  
+	  vars_files:
+			- vars/secret.yml
+  	  tasks:
+		- name: Ensure the webserver is reachable
+	  	  uri:
+			url: http://servera.lab.example.com
+			status_code: 200
+
+	##########################################################
+		- name: connect to web server with basic auth
+	  	  uri:
+			url: https://serverb.lab.example.com
+			validate_certs: no
+			force_basic_auth: yes
+			user: "{{ web_user }}"
+			password: "{{ web_pass }}"
+			return_content: yes
+			status_code: 200
+			register: auth_test
+
+		- debug:
+			var: auth_test.content
+
+	############################################################
+
+	[student@workstation data-review]$ mkdir vars
+
+	[student@workstation data-review]$ ansible-vault create vars/secret.yml
+
+			New Vault password: redhat
+			Confirm New Vault password: redhat
+
+
+			web_pass: redhat
+
+
+
+
+
+	############################################################
+	VERIFY:
+
+	###########################################################
+
+
+
+	[student@workstation data-variables]$ ansible-playbook 		playbook.yml				  --syntax-check 
+	[student@workstation data-variables]$ ansible-playbook 		playbook.yml
+
+
+
+
+
+	[student@workstation data-review]$ ansible-playbook		playbook.yml 	--ask-vault-pass 	 --syntax-check  		--> pass is "redhat"
+	[student@workstation data-review]$ ansible-playbook		playbook.yml 	--ask-vault-pass 	   
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+Inclusice:
+
+
+vim task.yml
+	
+---
+- name: install the package 
+  yum:
+	name: httpd
+	state: latest
+
+
+- name: The httpd service is started and enabled	
+  service:
+	name: httpd											
+	enabled: true
+	state: started
+
+
+
+vim myWebservers.yml
+	
+---
+- name: Demo of variable
+  hosts: all
+  tasks:
+	name: import tasks
+	include: tasks.yml
+	
+
+
+
+
+
+
+
+
+
+
+

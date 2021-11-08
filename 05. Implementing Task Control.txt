@@ -1,0 +1,729 @@
+LAB 1:
+
+
+[student@workstation proj1]$ cat sample1-webserver.yml
+
+	- name:  install and enable web server
+	  hosts: servera.lab.example.com	
+	  tasks:
+		- name: lastest version of httpd and firewalld installed
+   		  yum:
+   			name:
+          			- httpd
+          			- firewalld	
+
+
+        		state: present
+		
+		############################################################################
+		- name: web server is start & enabled
+         	 service:
+        	         name: httpd						
+			 enabled: true
+			 state: started
+
+		- name: firewalld is start & enabled
+      	          service:
+                 	name: firewalld
+			enabled: true
+			state: started
+		############################################################################ or ############################################################################
+		- name: web server & firewalld  are start & enabled
+	          service:
+	                 name: {{ item }}
+			 enabled: true
+			 state: started
+		  with_items:
+			- firewalld
+			- httpd
+	
+	
+		############################################################################
+		- name: firewalld permits access to httpd service
+	     	  firewalld:
+	        	service: http
+	        	permanent: true
+	        	state: enabled
+	        	immediate: yes
+
+
+################################################################################################################################################
+################################################################################################################################################
+
+LAB 2 
+
+
+
+	[student@workstation proj1]$ cat inventory
+		[database_dev]
+		servera.lab.example.com
+		[database_prod]
+		serverb.lab.example.com
+
+	#########################################################################
+
+	[student@workstation proj1]$ cat sample2-DBserver.yml	
+
+	---
+	- name:  install and enable web server
+	  hosts: servera.lab.example.com	
+	  vars:
+		myservice:
+			- firewalld
+			- httpd
+	  tasks:
+		- name: lastest version of httpd and firewalld installed
+   		  yum:
+   			name:
+          			- httpd
+          			- firewalld	
+
+
+        		state: present
+		--------------------------------------------------------
+		# register: yum_output
+		# - name: display yum output
+		#    dubug:
+		#    var: yum_output
+		--------------------------------------------------------
+		- name: web server & firewalld  are start & enabled
+	          service:
+	                 name: {{ item }}
+			 enabled: true
+			 state: started
+
+		  loop: "{{ myservice }}"
+		
+		
+		############################################################################
+		- name: firewalld permits access to httpd service
+	     	  firewalld:
+	        	service: http
+	        	permanent: true
+	        	state: enabled
+	        	immediate: yes	
+
+
+
+
+
+	#########################################################################
+
+	[student@workstation control-flow]$ ansible-playbook 	playbook.yml
+
+	#########################################################################
+	Now edit and add database_prod
+	#########################################################################
+
+	[student@workstation control-flow]$ ansible 		database_prod 		-m command  -a 'cat /etc/redhat-release' -u devops --become
+
+	[student@workstation control-flow]$ ansible-playbook 	playbook.yml
+
+	#########################################################################
+
+
+
+
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+
+LAB 4		Register
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+
+
+LAB 5:
+
+
+
+	[student@workstation proj1]$anisble localhost -m setup	
+	[student@workstation proj1]$anisble localhost -m setup | grep vda			--> /vda	/mount
+	[student@workstation proj1]$anisble localhost -m setup | less
+
+	[student@workstation proj1]$anisble localhost -m setup -a 'filter=ansible_devices'
+
+
+
+
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+
+
+LAB 6:
+
+	[student@workstation proj2]$vim  config_database.yml
+	---
+	- name: MariaDB server is installed
+  	  hosts: databases
+  	 
+	  tasks:
+
+		- name: Install extra packages
+		  yum:
+			 name: "{{ extra_packages }}"
+			 state: latest
+
+
+		- name: Download config file
+		  get_url:
+			url: http://materials.example.com/labs/controlhandlers/my.cnf.standard
+			dest: "{{ configure_database_path }}"
+			owner: mysql
+			group: mysql
+			mode: 0644
+			seuser: system_u
+			setype: mysqld_etc_t
+			force: yes
+
+
+		- name: restart db service
+		  service:
+			name: "{{ db_service }}"
+			enabled: true			
+			state: restarted
+
+
+	[student@workstation proj2]$vim  playbook.yml
+
+	- name: Configure DB Server
+  	  hosts: all
+  	  vars:
+		db_packages:									
+			- mariadb-server
+			- python3-PyMySQL
+
+		db_service: mariadb
+		db_users:
+			- db_admin
+			- db_user
+		configure_database_pat: /etc/my.cnf
+								
+	   tasks:
+		
+		- name: Create the MariaDB users
+		  user:
+			name: "{{ item }}"
+		  loop: "{{ db_users}}"
+		  when: inventory_hostname in groups['databases']
+
+		- name: "Install the DB package"
+		  yum:
+			 name: "{{ db_packages }}"
+			 state: present
+		  when: db_package is defined
+
+		- name: Configur of db software
+		  include: confgiure_database
+
+
+BOOK LAB
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+
+2. HANDLER
+
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+LAB 7:
+
+
+
+
+	- name: MariaDB server is installed
+  	  hosts: databases
+  	  vars:
+		db_packages:									
+			- mariadb-server
+			- python3-PyMySQL
+
+		db_service: mariadb								
+		resources_url: http://materials.example.com/labs/controlhandlers		
+		config_file_url: "{{ resources_url }}/my.cnf.standard"
+		config_file_dst: /etc/my.cnf
+
+		#######################################################################################################
+
+	  tasks:
+
+		- name: "{{ db_packages }} packages are installed"
+		  yum:
+			 name: "{{ db_packages }}"
+			 state: present
+		  notify:
+			 - set db password
+
+
+		- name: Make sure the database service is running
+		  service:
+			name: "{{ db_service }}"
+			state: started
+			enabled: true
+		#######################################################################################################
+
+		- name: The {{ config_file_dst }} file has been installed
+		  get_url:
+			url: "{{ config_file_url }}"
+			dest: "{{ config_file_dst }}"
+			owner: mysql
+			group: mysql
+			force: yes
+		  notify:
+			- restart db service
+		#######################################################################################################
+
+	handlers:
+		- name: restart db service
+		  service:
+			name: "{{ db_service }}"
+			state: restarted
+
+
+		- name: set db password
+		  mysql_user:
+			name: root
+			password: redhat
+
+		#######################################################################################################
+
+
+
+
+	[student@workstation control-handlers]$ ansible-playbook 	configure_db.yml  	--syntax-check 
+	[student@workstation control-handlers]$ ansible-playbook 	configure_db.yml
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+ERROR
+################################################################################################################################################
+################################################################################################################################################
+
+Lab 8:
+
+	- name: Latest version of notapkg is installed
+	  yum:
+		name: notapkg
+		state: latest
+	  ignore_errors: yes
+
+
+
+
+
+
+################################################################################################################################################
+
+
+LAB 9:
+
+
+	---
+	- name: c5 - play-2 config server with notify and handler 
+	  hosts: serverb.lab.example.com
+	  force_handlers: yes
+	  vars:
+	    myservice: 
+	      - httpd 
+      - firewalld    
+	  tasks:
+	    ######################################################
+	    - name:  restart & enabled crond
+	      service:
+	        name: crond
+	        enabled: true
+  	      	#state: start
+        state: restarted
+	      notify:
+	          - restart_my_service
+	    #######################################################
+	    - name: install vsftpd
+	      yum:  
+	        name: 
+	            - bsftpd     
+	        state: latest
+	  #########################################################
+	  handlers:
+	    - name: restart_my_service  
+	      service:
+	        name: sshd
+	        state: restarted
+  
+	~
+
+################################################################################################################################################
+
+
+lab10
+
+	---
+	- name: Grab Site Homepage
+	  hosts: all
+
+	- name: Making sure the /opt has more than 4gb
+    	  shell: "df -h /opt|grep -v Filesystem|awk '{print $4}'|cut -d G -f1"
+    	  register: tmpspace
+    	  failed_when: "tmpspace.stdout|float < 4"
+
+	- name: install web server
+	  yum:
+		name: 
+			- httpd
+	  state: latest
+
+	- name: display output
+	  debug:
+	    var: tmpspace
+
+	################################################################################################################################################
+
+
+	---
+	- name: Grab Site Homepage
+	  hosts: all
+  	gather_facts: false
+
+	  tasks:
+	    - name: Grab Homepage
+	      uri:
+	        url: https://mysite.com
+	        return_content: true
+	     register: response
+
+	    - name: Check Content
+	      debug:
+	        msg: "Testing content..."
+	    failed_when:
+	      - '"My Site" not in response.content'
+	      - '"Other String" not in response.content'
+
+
+
+	##############################################################################################################################################
+
+ 	- name: Making sure the /opt has more than 4gb
+    	shell: "df -h /opt|grep -v Filesystem|awk '{print $4}'|cut -d G -f1"
+    	register: tmpspace
+    	failed_when: "tmpspace.stdout|float < 4"
+
+ 	 - name: Making sure the Physical Memory more than 2gb
+    	shell: "cat /proc/meminfo|grep -i memtotal|awk '{print $2/1024/1024}'"
+    	register: memory
+    	failed_when: "memory.stdout|float < 2"
+
+
+					       
+
+
+
+################################################################################################################################################
+
+lab 11:
+
+	--- 
+	- hosts: web
+	  tasks:
+	  - name: "Start the Apache HTTPD Server"
+	    become: true
+	    become_user: root
+	    register: starthttpdout
+	    shell: "httpd -k start"
+	    changed_when: "'already running' not in starthttpdout.stdout"
+
+	  - debug:
+	      msg: "{{starthttpdout.stdout}}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	[student@workstation control-errors]$ ansible-playbook playbook.yml
+
+	---
+	- name: Task Failure Exercise
+	  hosts: databases
+	  vars:
+		web_package: http
+		db_package: mariadb-server
+		db_service: mariadb
+
+	#######################################################################################################
+	tasks:
+
+			- name: Install {{ web_package }} package
+	  		  yum:
+				name: "{{ web_package }}"
+				state: present
+				ignore_errors: yes			--> Run the playbook with and without adding
+
+			- name: Install {{ db_package }} package
+			  yum:
+				name: "{{ db_package }}"
+				state: present
+
+	#######################################################################################################
+	
+
+
+		- name: Attempt to set up a webserver
+		  block:
+			- name: Install {{ web_package }} package
+			  yum:
+				name: "{{ web_package }}"
+				state: present
+
+		 rescue:
+			- name: Install {{ db_package }} package
+			  yum:
+				name: "{{ db_package }}"
+				state: present
+
+
+		 always:
+			- name: Start {{ db_service }} service
+			  service:
+				name: "{{ db_service }}"
+				state: started
+	#######################################################################################################
+
+	[student@workstation control-errors]$ ansible-playbook playbook.yml	
+
+	
+	vars:
+		web_package: httpd
+		db_package: mariadb-server
+		db_service: mariadb
+
+	#######################################################################################################
+	[student@workstation control-errors]$ ansible-playbook playbook.yml	
+
+
+	tasks:
+		- name: Check local time
+		  command: date
+		  register: command_result
+		  changed_when: false			--> run with and without
+
+		- name: Print local time
+		  debug:
+			var: command_result.stdout
+
+	#######################################################################################################
+	task.
+		- block:
+		- name: Install {{ web_package }} package
+		  yum:
+			name: "{{ web_package }}"
+			state: present
+ 		 failed_when: web_package == "httpd"
+
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+
+
+---
+- name: Playbook Control Lab
+  hosts: webservers
+  vars_files: vars.yml
+
+  tasks:
+
+
+
+	#Fail Fast Message
+	- name: Show Failed System Requirements Message
+	  fail:
+		msg: "The {{ inventory_hostname }} did not meet minimum reqs."
+	  when: >
+		ansible_memtotal_mb < min_ram_mb or
+		ansible_distribution != "RedHat"
+
+
+
+	#Install all Packages
+	 - name: Ensure required packages are present
+	   yum:
+		name: "{{ packages }}"
+		state: latest
+
+	#Enable and start services
+	- name: Ensure services are started and enabled
+	  service:
+		name: "{{ item }}"
+		state: started
+		enabled: yes
+		loop: "{{ services }}"
+
+
+
+	#Block of config tasks
+	- name: Setting up the SSL cert directory and config files
+	  block:
+
+		- name: Create SSL cert directory
+	  	file:
+			path: "{{ ssl_cert_dir }}"
+			state: directory
+
+		- name: Copy Config Files
+	 	 copy:
+			src: "{{ item.src }}"
+			dest: "{{ item.dest }}"
+			loop: "{{ web_config_files }}"
+			notify: restart web service
+	 rescue:
+		
+		- name: Configuration Error Message
+		  debug:
+			msg: >
+				One or more of the configuration changes failed, but the web service is still active.
+
+
+
+		#Configure the firewall
+		- name: ensure web server ports are open
+		  firewalld:
+			service: "{{ item }}"
+			immediate: true
+			permanent: true
+			state: enabled
+		loop:
+			- http
+			- https
+
+
+	#Add handlers
+	handlers:
+	- name: restart web service
+	  service:
+		name: "{{ web_service }}"
+		state: restarted
+
+
+
+[student@workstation control-review]$ ansible-playbook playbook.yml
+[student@workstation control-review]$ curl -k -vvv https://serverb.lab.example.com
+
+
+
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+################################################################################################################################################
+
+
+
+
+
+
+
+
+
+
+
+tasks:
+  - name: "shut down Debian flavored systems"
+    command: /sbin/shutdown -t now
+    when: ansible_os_family == "Debian"
+
+
+################################################################################################################################################
+
+--- 
+- hosts: web
+  tasks:
+  - name: "Determine if the HTTPD is installed"
+    register: validatehttpd
+    shell: httpd
+
+  - name: Ensure Apache is at the Latest version
+    become: yes
+    become_user: root
+    yum:
+      name: httpd
+      state: latest
+    when: 'not found' in validatehttpd.stdout
+################################################################################################################################################
+
+--- 
+- hosts: web
+  tasks:
+  - name: "Start the Apache HTTPD Server"
+    become: true
+    become_user: root
+    register: starthttpdout
+    shell: "httpd -k start"
+    changed_when: "'already running' not in starthttpdout.stdout"
+
+  - debug:
+      msg: "{{starthttpdout.stdout}}"
+
+
+
+
+
+
+
+
+################################################################################################################################################
+
+- name: Install dependencies via Composer.
+  command: "/usr/local/bin/composer global require phpunit/phpunit --prefer-dist"
+  register: composer
+  changed_when: "'Nothing to install or update' not in composer.stdout"
+
+
+
+
+
+
+################################################################################################################################################
+
+
+
+
+
+
+
+
+
+################################################################################################################################################

@@ -1,0 +1,1030 @@
+
+	[student@workstation play-1]$ cat ansible.cfg 
+		[defaults]
+		inventory=inventory
+		remote_user=devops
+
+		[privilege_escalation]
+		become=True
+		become_method=sudo
+		become_user=root
+		become_ask_pass=False
+
+
+
+	[student@workstation play-1]$ cat inventory 
+		servera.lab.example.com
+		serverb.lab.example.com
+		serverc.lab.example.com
+		serverd.lab.example.com
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+1.
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	
+1.1	[student@workstation play-1]$ cat playbook1-debug.yml 
+
+	---
+	- name: Install the required packages on the web server
+	  hosts: servera.lab.example.com
+	  vars:
+	    custom_pkg: example-motd
+	  tasks:
+	    - name: Gather info on installed packages
+	      package_facts:
+	        manager: auto
+	    #####################################################
+	    - name: List installed packages
+	      debug:
+	        var: ansible_facts.packages    
+	    ####################################################
+	    - name: Display NetworkManager version
+	      debug:
+	        msg: "Version {{ansible_facts.packages['NetworkManager'][0].version}}"
+	      when: "'NetworkManager' in ansible_facts.packages"
+
+	    ###################################################
+    
+	    - name: Display facts 
+	      debug:
+	        msg: "Version {{ansible_facts}}"
+	    ###################################################
+	    - name: display IP and gateway
+	      debug:
+	        msg: System {{ inventory_hostname }} has gateway {{ ansible_default_ipv4.gateway }}
+	      when: ansible_default_ipv4.gateway is defined 
+	    ###################################################
+	    - name: Show Package Facts for the custom package
+	      debug:
+	        var: ansible_facts.packages[custom_pkg]
+	      when: custom_pkg in ansible_facts.packages  
+
+  
+	    ###################################################
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+2. Yum
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+2.1	[student@workstation play-1]$ cat playbook2-yum-service.yml
+	---
+	- name: Install the required packages on the web server
+	  hosts: servera.lab.example.com
+	  vars:
+	    custom_pkg: example-motd
+	  tasks:
+	    - name: Install the httpd packages
+	      yum:
+	        name: httpd
+	        state: present
+	    ######################################################
+	    - name: Install the packages
+	      yum:
+	        name:
+	          - httpd
+	          - mod_ssl
+	          - httpd-tools
+	        state: present
+	    #######################################################
+	    - name: Install package from variable
+	      yum:
+	        name: "{{ custom_pkg }}"
+	        state: present
+	    ######################################################
+	    - name: Install the packages
+	      yum:
+	        name: "{{ item }}"
+	        state: present
+	      loop:
+	          - httpd
+	          - mod_ssl
+	          - httpd-tools
+	    #######################################################
+	    - name: Install or update httpd
+	      yum:
+	        name: httpd
+	        state: latest
+	    ######################################################
+	    - name: Update all packages
+	      yum:
+	        name: '*'
+	        state: latest
+	    ###################################################
+	    - name: Remove vsftpd
+	      yum:
+	        name: vsftpd
+	        state: absent
+
+	    ###################################################
+	    - name: Install Development Tools
+	      yum:
+	        name: '@System Tools'
+	        state: present
+	    ###################################################
+	    - name: Remove Development Tools
+	      yum:
+	        name: '@Development Tools'
+	        state: absent
+	    ###################################################
+	    - name: Inst perl AppStream module
+	      yum:
+	        name: '@perl:5.26/minimal'
+	        state: present
+	    ###################################################
+	   
+	    - name: install with condition on redhat
+	      yum:
+	          name: httpd
+	          state: present
+	      when: "ansible_distribution == 'RedHat'"
+    
+	    - name: install with condition  on Fedora
+	      dnf:
+	        name: httpd
+	        state: present
+	      when: "ansible_distribution == 'Fedora'"    
+	    
+    
+	###################################################
+	###################################################
+
+	- name: Configure Red Hat Subscription
+	  hosts: serverb.lab.example.com
+	  tasks:
+	    - name: Register and subscribe the system
+	      redhat_subscription:
+	        username: yourusername
+	        password: yourpassword
+	        pool_ids: poolID
+	        state: present
+    
+	    - name: Enable Red Hat repositories
+	      rhsm_repository:
+	        name:
+	          - rhel-8-for-x86_64-baseos-rpms
+	          - rhel-8-for-x86_64-baseos-debug-rpms
+	        state: present
+    
+	###################################################
+	###################################################
+
+	- name: Configure the company Yum repositories
+	  hosts: servera.lab.example.com
+	  tasks:
+	    - name: Ensure Example Repo exists
+	      yum_repository:
+	        name: example-internal
+	        description: Example Inc. Internal YUM repo
+	        file: example
+	        baseurl: http://materials.example.com/yum/repository/
+	        enabled: yes
+	        gpgcheck: yes
+	        #state: present
+	        #state: absent
+	        #Note: if state is present, then check if file is present. If absent, then it will delete
+
+	    ###################################################
+	    - name: Deploy the GPG public key
+	      rpm_key:
+	        key: http://materials.example.com/yum/repository/RPM-GPG-KEY-example
+	        state: present
+	     ###################################################
+	    - name: Ensure Example Repo exists
+	      yum_repository:
+	        file: example
+	        name: example-internal
+	        description: Example Inc. Internal YUM repo
+	        baseurl: http://materials.example.com/yum/repository/
+	        enabled: yes
+	        gpgcheck: yes
+	        state: present
+
+
+
+	###################################################
+	###################################################    
+
+	- name: Start service 
+	  hosts: servera.lab.example.com
+	  tasks:
+	    - name: start nginx
+	      service:
+	        name: nginx
+	        state: started"
+
+	    - name: reload web server
+	      systemd:
+	        name: apache2
+	        state: reload
+	        daemon-reload: yes
+
+	
+
+
+	###########################################################################
+	[student@workstation system-software]$ ansible all -m yum -a 'name=example-motd state=absent'
+		
+	[student@workstation system-software]$ ansible-playbook repo_playbook.yml
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+3. User
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+3.1	[student@workstation play-1]$ cat playbook3-user.yml 
+
+	---
+	- name: User
+	  hosts: all
+	  tasks:
+	    - name: Add new user to the development machine and assign the appropriate groups.
+	      user:
+	        name: devops_user
+	        shell: /bin/bash
+	        groups: sys_admins, developers
+	        append: yes
+	    ##########################################
+	    - name: Add User
+	      user:
+	        name: tom
+	        comment: Testing
+	        group: CN
+        	home: /rhome/tom
+        	create_home: yes
+        	system: yes
+        	uid: 1500
+        	state: present
+	    ##########################################
+	    - name: Add User
+	      group:    
+	        gid: 5000
+	        local:
+	        name:
+	        state: present
+	        system: yes
+
+	        # system :  If set to yes, indicates that the group created is a system group.
+	    ##########################################
+	    - name: Create a SSH key for user1
+	      user:
+	        name: user1
+	        generate_ssh_key: yes
+	        ssh_key_bits: 2048
+	        ssh_key_file: .ssh/id_my_rsa
+	    ##########################################
+	    - name: copy host keys to remote servers known_hosts:
+	      path: /etc/ssh/ssh_known_hosts
+	        name: user1
+	        key: "{{ lookup('file', 'pubkeys/user1') }}"
+	    ##########################################
+	    - name: Set authorized key
+	      authorized_key:
+	        user: user1
+	        state: present
+	        key: "{{ lookup('file', '/home/user1/.ssh/id_rsa.pub') }}"    
+
+	##########################################
+	##########################################
+
+	---
+	- name: Create multiple local users
+	  hosts: webservers
+	  vars_files:
+	    - vars/users_vars.yml
+	  handlers:
+	      - name: Restart sshd
+        service:
+          name: sshd
+          state: restarted
+	  tasks:
+	    - name: Add webadmin group
+	      group:
+	        name: webadmin
+	        state: present
+	    #########################################
+	    - name: Create user accounts
+	      user:
+	        name: "{{ item.username }}"
+	        groups: webadmin
+	      loop: "{{ users }}"
+	    ########################################
+	    - name: Add authorized keys
+	      authorized_key:
+	        user: "{{ item.username }}"
+	        key: "{{ lookup('file', 'files/'+ item.username + '.key.pub') }}"
+	      loop: "{{ users }}"
+	    ##########################################
+	    - name: Modify sudo config to allow webadmin users sudo without a password 
+	      copy:
+	        content: "%webadmin ALL=(ALL) NOPASSWD: ALL"
+	        dest: /etc/sudoers.d/webadmin
+	        mode: 0440
+	    #############################################
+	    - name: Disable root login via SSH
+	      lineinfile:
+	        dest: /etc/ssh/sshd_config
+	        regexp: "^PermitRootLogin"
+	        line: "PermitRootLogin no"
+	      notify: Restart sshd
+	    ##############################################
+
+
+	#####################################################################
+	#####################################################################
+
+3.2	[student@workstation play-1]$ cat vars/users_vars.yml 
+	---
+	  users:
+	    - username: user1
+	      groups: webadmin
+	    - username: user2
+	      groups: webadmin
+	    - username: user3
+	      groups: webadmin
+	    - username: user4
+	      groups: webadmin
+	    - username: user5
+	      groups: webadmin
+
+
+
+	
+
+
+	###########################################################################
+
+
+	###########################################################################
+
+
+
+	[student@workstation system-users]$ ansible-playbook users.yml
+
+	[student@workstation system-users]$ ansible-playbook users.yml
+
+	[student@workstation system-users]$ ssh user1@servera
+
+		[user1@servera ~]$ sudo su -
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+4. at cron
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+4.1 	[student@workstation play-1]$ cat playbook4-at-cron.yml
+
+	---
+	- name: "Task1-Recurring cron job"
+	  hosts: webservers
+	  become: true
+	  tasks:
+	    - name: Crontab file exists
+	      cron:
+	        name: Add date and time to a file
+	        minute: "*/2"
+	        hour: 9-16
+	        weekday: 1-5
+	        user: devops
+	        job: date >> /home/devops/my_date_time_cron_job
+	        cron_file: add-date-time
+	        state: present
+	        #special_time:
+	        #backup:
+
+	###############################################################
+	###############################################################
+
+	- name: "Task2-Remove scheduled cron job"
+	  hosts: webservers
+	  become: true
+	  tasks:
+	    - name: Cron job removed
+	      cron:
+	        name: Add date and time to a file
+	        user: devops
+	        cron_file: add-date-time
+	        state: absent
+
+
+	###############################################################
+	###############################################################
+
+	- name: Schedule at task
+	  hosts: webservers
+	  become: true
+	  become_user: devops
+	  tasks:
+	    - name: Create date and time file
+	      at:
+	        command: "date > ~/my_at_date_time\n"
+	        count: 1
+	        units: minutes
+	        unique: yes
+	        state: present
+	        #script_file:
+
+	###############################################################
+	###############################################################
+
+	- name: Change default boot target
+	  hosts: webservers
+	  become: true
+	  tasks:
+	    - name: Default boot target is graphical
+	      file:
+	        src: /usr/lib/systemd/system/graphical.target
+	        dest: /etc/systemd/system/default.target
+	        state: link
+
+
+
+	###############################################################
+	###############################################################
+
+	- name: Reboot hosts
+	  hosts: webservers
+	  become: true
+	  tasks:
+	    - name: Hosts are rebooted
+	      reboot:
+
+	###############################################################
+	###############################################################
+
+	- name: Reboot hosts
+	  hosts: webservers
+	  become: true
+	  tasks:
+	    - name: "Reboot after patching"
+	      reboot:
+	        reboot_timeout: 180
+
+
+	###############################################################
+	###############################################################
+
+
+	- name: Reboot hosts
+	  hosts: webservers
+	  become: true
+	  vars:
+	    local_shell: "{{ ansible_env }}"
+	  tasks:
+	    - name: Run a templated variable (always use quote filter to avoid injection)
+	      shell: cat {{ myfile|quote }}
+
+	    - name: This command only
+	      command: /usr/bin/scrape_logs.py arg1 arg2
+	        args:
+	        chdir: scripts/
+ 	       creates: /path/to/script
+
+	    - name: Printing all the environment variables in Ansible
+	      debug:
+	        msg: "{{ local_shell }}"
+
+
+	###############################################################
+	###############################################################
+
+
+
+
+
+	###########################################################################
+
+	[student@workstation system-process]$ ansible-playbook 		create_crontab_file.yml					--syntax-check 
+
+	
+
+	[student@workstation system-process]$ ansible-playbook 					remove_cron_job.yml		--syntax-check 
+
+	[student@workstation system-process]$ ansible-playbook 					remove_cron_job.yml
+
+	[student@workstation system-process]$ ansible 			webservers 	-u devops –b -a "cat /etc/cron.d/add-date-time"
+
+
+	[student@workstation system-process]$ ansible-playbook 				schedule_at_task.yml			--syntax-check 
+
+
+	[student@workstation system-process]$ ansible-playbook		set_default_boot_target_graphical.yml			 --syntax-check 
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+5. Storage
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+5.1.1	[student@workstation play-1]$ cat playbook5-storage-1.yml 
+
+	---
+	- name: Ensure Apache Storage Configuration
+	  hosts: webservers
+	  vars_files:
+	    - storage_vars-1.yml
+	  tasks:
+	    - name: Correct partitions exist on /dev/vdb
+	      debug:
+	        msg: TODO
+	      loop: "{{ partitions }}"
+	    ############################################################
+	    - name: Ensure Volume Groups Exist
+	      debug:
+	        msg: TODO
+	      loop: "{{ volume_groups }}"
+	    ############################################################
+	    - name: Create each Logical Volume (LV) if needed
+	      debug:
+	        msg: TODO
+	      loop: "{{ logical_volumes }}"
+	      when: true
+	    ############################################################
+	    - name: Ensure XFS Filesystem exists on each LV
+	      debug:
+	        msg: TODO
+	      loop: "{{ logical_volumes }}"
+	    ############################################################
+	    - name: Ensure the correct capacity for each LV
+	      debug:
+	        msg: TODO
+	      loop: "{{ logical_volumes }}"
+	    ###########################################################
+	    - name: Each Logical Volume is mounted
+	      debug:
+	        msg: TODO
+	      loop: "{{ logical_volumes }}"
+	    ###########################################################
+
+
+
+	#################################################################
+	#################################################################
+
+5.1.2	[student@workstation play-1]$ cat storage_vars-1.yml 
+	---
+	partitions:
+	  - number: 1
+	    start: 1MiB
+	    end: 257MiB
+
+	volume_groups:
+	  - name: apache-vg
+	    devices: /dev/vdb1
+
+	logical_volumes:
+	  - name: content-lv
+	    size: 64M
+	    vgroup: apache-vg
+	    mount_path: /var/www
+
+	  - name: logs-lv
+	    size: 128M
+	    vgroup: apache-vg
+	    mount_path: /var/log/httpd
+
+
+
+	#################################################################
+	#################################################################
+
+5.2.1	[student@workstation play-1]$ cat playbook5-storage-2.yml 
+
+	---
+	- name: Ensure Apache Storage Configuration
+	  hosts: webservers
+	  vars_files:
+	    - storage_vars-2.yml
+	  tasks:
+	    - name: Correct partitions exist on /dev/vdb
+	      parted:
+	        #align:
+	        #flags:
+	        #unit:
+	        device: /dev/vdb
+	        state: present
+	        number: "{{ item.number }}"
+	        part_start: "{{ item.start }}"
+	        part_end: "{{ item.end }}"
+	      loop: "{{ partitions }}"
+	    #####################################################
+	    - name: Ensure Volume Groups Exist
+	      lvg:
+	        vg: "{{ item.name }}"
+	        pvs: "{{ item.devices }}"
+	        #pvs: /dev/vdb1,/dev/vdc1
+	        #pesize:
+	        #state:
+	      loop: "{{ volume_groups }}"
+	    #####################################################
+	    - name: Create each Logical Volume (LV) if needed
+	      lvol:
+	        vg: "{{ item.vgroup }}"
+	        lv: "{{ item.name }}"
+	        size: "{{ item.size }}"
+	      loop: "{{ logical_volumes }}"
+	      when: item.name not in ansible_lvm["lvs"]
+	    #####################################################
+	    - name: Ensure XFS Filesystem exists on each LV
+	      filesystem:
+	        dev: "/dev/{{ item.vgroup }}/{{ item.name }}"
+	        fstype: xfs
+	        #resizefs:
+	      loop: "{{ logical_volumes }}"
+	    #####################################################
+	    - name: Ensure the correct capacity for each LV
+	      lvol:
+	        vg: "{{ item.vgroup }}"
+	        lv: "{{ item.name }}"
+	        size: "{{ item.size }}"
+	        resizefs: yes
+	        force: yes
+	        #shrink:
+	        #snapshot:
+	        #state:
+	      loop: "{{ logical_volumes }}"
+	    #####################################################
+	    - name: Each Logical Volume is mounted
+	      mount:
+	        path: "{{ item.mount_path }}"
+	        src: "/dev/{{ item.vgroup }}/{{ item.name }}"
+	        fstype: xfs
+	        opts: noatime
+	        state: mounted
+	      loop: "{{ logical_volumes }}"
+	    #####################################################
+
+
+	#################################################################
+	#################################################################
+
+	- name: Task2 - NFS Mount
+	  hosts: serverb.lab.example.com
+	  tasks:
+	    - name: Mount NFS share
+	      mount: name=/nfsshare src=172.25.250.100:/share fstype=nfs opts=defaults,nobootwait dump=0 passno=2 state=mounted
+	    ####################################################
+   
+
+	#################################################################
+	#################################################################
+
+
+	- name: Task - SWAP 
+	  hosts: serverb.lab.example.com
+	  tasks:
+	    - name: Create new swap VG
+	      lvg: vg=vgswap pvs=/dev/vda1 state=present
+	    - name: Create new swap LV
+	      lvol: vg=vgswap lv=lvswap size=10g
+	    - name: Format swap LV
+	      command: mkswap /dev/vgswap/lvswap
+	      when: ansible_swaptotal_mb < 128
+	    - name: Activate swap LV
+	      command: swapon /dev/vgswap/lvswap
+	      when: ansible_swaptotal_mb < 128
+	    #####################################################
+
+
+
+	#################################################################
+	#################################################################
+
+5.2.2	[student@workstation play-1]$ cat storage_vars-2.yml 
+
+	partitions:
+	  - number: 1
+	    start: 1MiB
+	    end: 257MiB
+	  - number: 2
+	    start: 257MiB
+	    end: 513MiB
+
+	volume_groups:
+	  - name: apache-vg
+	    devices: /dev/vdb1,/dev/vdb2
+
+	logical_volumes:
+	  - name: content-lv
+	    size: 128M
+	    vgroup: apache-vg
+	    mount_path: /var/www
+	  - name: logs-lv
+	    size: 256M
+	    vgroup: apache-vg
+	    mount_path: /var/log/httpd
+
+
+
+
+
+	#################################################################
+	#################################################################
+
+
+	
+
+
+	###########################################################################
+	[student@workstation system-storage]$ ansible 				all 	-m setup 	-a "filter=ansible_lvm"
+
+
+	[student@workstation system-storage]$ ansible-playbook 								storage.yml		
+
+
+	###########################################################################					
+	[student@workstation system-storage]$ ansible 				all 			-a lsblk
+	
+	###########################################################################	
+	[student@workstation system-storage]$ ansible-playbook 								storage.yml
+	[student@workstation system-storage]$ ansible				 all 			-a lsblk	
+
+
+	###########################################################################
+	[user@controlnode ~]$ ansible webservers -m setup
+	[user@controlnode ~]$ ansible webservers -m setup -a 'filter=ansible_devices'
+	[user@controlnode ~]$ ansible webservers -m setup -a 'filter=ansible_device_links'
+	[user@controlnode ~]$ ansible webservers -m setup -a 'filter=ansible_mounts'	
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+6. Role
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+6.1	[student@workstation play-2]$ cat playbook.yml 
+	---
+	- name: NIC Configuration
+	  hosts: servera.lab.example.com
+	  roles:
+	    - rhel-system-roles.network
+
+	###########################################################################
+	---
+	- name: NIC Configuration
+	  hosts: serverb.lab.example.com
+	  vars:
+	    #network_provider: nm
+	    network_connections:
+	      - name: ens4
+	        type: ethernet
+	        #persistent_state: present
+	        #autoconnect: yes
+	        #mac: 00:00:5e:00:53:5d
+	        ip:
+	          address:
+	            - 172.25.250.30/24
+	  roles:
+	    - rhel-system-roles.network
+
+	###########################################################################
+	---
+	- name: NIC Configuration
+	  hosts: serverc.lab.example.com
+	  tasks:
+	    - name: NIC configuration
+	      nmcli:
+	  	    conn_name: ens4-conn		
+	        ifname: ens4			
+	        type: Ethernet			
+	        ip4: 172.25.250.30/24		
+	        gw4: 172.25.250.1		
+	        state: present			
+	        #autoconnect: 
+	        #dns4:
+	    ############################################
+	    - name: Change hostname
+	      hostname:
+	        name: managedhost1
+	    #########################################
+	    - name: Enabling http rule
+	      firewalld:
+	        service: http
+	        #port:
+	        #rich_rule:
+	        #zone:
+	        #type:
+	        permanent: yes
+	        state: enabled
+	    ##########################################
+	    - name: Moving eth0 to external
+	      firewalld:
+	        zone: external
+	        interface: eth0
+	        permanent: yes
+	        state: enabled
+
+
+	###########################################################################
+
+	
+6.2	[student@workstation play-2]$ cat group_vars/webservers/network.yml 
+	---
+	network_connections:
+	  - name: ens4
+	    type: ethernet
+	    ip:
+	      address:
+	        - 172.25.250.30/24
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	###########################################################################
+	[student@workstation system-network]$ ansible-galaxy list
+
+	###########################################################################
+
+
+
+	###########################################################################
+
+	[student@workstation system-network]$ ls	/usr/share/ansible/roles 
+	[student@workstation system-network]$ cat  	/usr/share/doc/rhel-system-roles/network/README.md
+
+
+	###########################################################################
+	[student@workstation system-network]$ mkdir -pv group_vars/webservers
+
+	###########################################################################
+	[student@workstation system-network]$ ansible-playbook playbook.yml
+
+	###########################################################################
+	[student@workstation system-network]$ 	ansible webservers -m setup -a 'filter=ansible_ens4'
+	
+	###########################################################################
+
+
+	###########################################################################
+
+
+	###########################################################################
+
+
+	###########################################################################
+	[user@controlnode ~]$ ansible webservers -m setup
+	[user@controlnode ~]$ ansible webservers -m setup  -a 'gather_subset=network filter=ansible_interfaces'
+	[user@controlnode ~]$ ansible webservers -m setup  -a 'gather_subset=network filter=ansible_ens4'
+
+										ansible_dns
+										ansible_domain
+										ansible_all_ipv4_addresses
+										ansible_all_ipv6_addresses
+										ansible_fqdn
+										ansible_hostname
+										ansible_nodename	
+
+	###########################################################################
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	
+
+
+	###########################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	
+
+
+	###########################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	
+
+
+	###########################################################################
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	
+
+
+	###########################################################################
+
