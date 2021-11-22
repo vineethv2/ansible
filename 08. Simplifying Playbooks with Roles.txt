@@ -1,0 +1,711 @@
+          ####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+	- name: Play to illustrate order of execution
+	   hosts: remote.example.com
+	   pre_tasks:
+	- debug:
+	msg: 'pre-task'
+	  notify: my handler
+
+	  roles:
+	- role1
+	  tasks:
+	- debug:
+	msg: 'first task'
+	  notify: my handler
+
+	post_tasks:
+	- debug:
+	  	msg: 'post-task'
+	  notify: my handler
+
+	handlers:
+	- name: my handler
+	  debug:
+	msg: Running my handler
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+	[student@workstation role-system]$ cat ansible.cfg 
+		[defaults]
+		inventory=./inventory
+		remote_user=devops
+		roles_path=./roles:/usr/share/ansible/roles:/etc/ansible/roles
+
+		#Try me...
+		#callback_whitelist=profile_tasks
+
+		[privilege_escalation]
+		become=True
+		become_method=sudo
+		become_user=root
+		become_ask_pass=False
+
+
+
+
+	[student@workstation role-system]$ cat inventory 
+
+			[controlnode]
+			workstation.lab.example.com
+
+
+			[na_datacenter]
+			servera.lab.example.com
+
+			[europe_datacenter]
+			serverb.lab.example.com
+
+
+			[database_servers]
+			servera.lab.example.com
+			serverb.lab.example.com
+
+	###########################################################################
+
+	[student@workstation role-system]$ ansible-galaxy list
+
+		# /home/student/role-system/roles
+		# /usr/share/ansible/roles
+		# /etc/ansible/roles
+		• ./roles
+		• /usr/share/ansible/roles
+		• /etc/ansible/roles
+
+
+	###########################################################################
+
+	[student@workstation role-system]$ sudo yum install rhel-system-roles
+
+	###########################################################################
+
+	[student@workstation role-system]$ ansible-galaxy list
+		# /home/student/role-system/roles
+		# /usr/share/ansible/roles
+		- linux-system-roles.kdump, (unknown version)
+		- linux-system-roles.network, (unknown version)
+		- linux-system-roles.postfix, (unknown version)
+		- linux-system-roles.selinux, (unknown version)
+		- linux-system-roles.timesync, (unknown version)
+		- rhel-system-roles.kdump, (unknown version)
+		- rhel-system-roles.network, (unknown version)
+		- rhel-system-roles.postfix, (unknown version)
+		- rhel-system-roles.selinux, (unknown version)
+		- rhel-system-roles.timesync, (unknown version)
+		# /etc/ansible/roles
+
+		-------------------------------------------
+
+		/usr/share/ansible/roles 
+
+
+	###########################################################################
+
+		|----------configure_time.yml
+		|----------
+		|----------
+		|----------
+		|----------
+		|-----------group_vars/
+		|		      |
+		|		      |--all/
+				          |---------------- timesync.yml 
+		|		      
+				      |--na_datacenter/
+					  |-----------------timezone.yml
+				          
+
+				      |--europe_datacenter/
+					  |-----------------timezone.yml
+
+	###########################################################################
+	[student@workstation role-system]$ vim configure_time.yml
+
+		---
+		- name: Time Synchronization
+		  hosts: database_servers
+		  #force_handlers: yes
+		  roles:
+			- rhel-system-roles.timesync
+
+
+
+				###########################################################################
+				[student@workstation role-system]$ cat  /usr/share/doc/rhel-system-roles/timesync/README.md
+				###########################################################################
+				[student@workstation role-system]$ mkdir -pv group_vars/all
+				###########################################################################
+
+				[student@workstation role-system]$vim group_vars/all/timesync.yml 
+
+					---
+					#rhel-system-roles.timesync variables for all hosts
+					timesync_ntp_provider: chrony
+					timesync_ntp_servers:
+					- hostname: classroom.example.com
+					  iburst: yes
+
+				###########################################################################
+				[student@workstation role-system]$ ansible-doc timezone | grep -A 4 "EXAMPLES"	
+
+				###########################################################################
+
+	
+
+		  post_tasks:
+			- name: Set timezone
+			  timezone:
+			  	name: "{{ host_timezone }}"
+			  notify: restart crond
+
+				###########################################################################
+		
+
+		
+		  handlers:
+			- name: restart crond
+			  service:
+				name: crond
+				state: restarted
+
+
+
+
+				###########################################################################
+				[student@workstation role-system]$ mkdir -pv  group_vars/{na_datacenter,europe_datacenter}
+
+
+				###########################################################################
+
+				[student@workstation role-system]$ timedatectl list-timezones | grep Chicago
+
+				[student@workstation role-system]$ timedatectl list-timezones | grep
+
+
+				###########################################################################
+				[student@workstation role-system]$ vim  group_vars/na_datacenter/timezone.yml
+
+									host_timezone: America/Chicago
+
+
+				[student@workstation role-system]$ vim  group_vars/europe_datacenter/timezone.yml
+
+									host_timezone: Europe/Helsinki
+
+
+
+	###########################################################################
+	[student@workstation role-system]$ ansible-playbook 	configure_time.yml 	--syntax-check
+	[student@workstation role-system]$ ansible-playbook 	configure_time.yml
+
+	###########################################################################
+	[student@workstation role-system]$ ansible database_servers -m shell -a date
+
+
+	###########################################################################
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+LAB-2									lab role-create start
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+		[student@workstation role-system]$ cat ansible.cfg 
+			[defaults]
+			inventory=./inventory
+			remote_user=devops
+			
+
+			#Try me...
+			#callback_whitelist=profile_tasks
+
+			[privilege_escalation]
+			become=True
+			become_method=sudo
+			become_user=root
+			become_ask_pass=False
+
+
+
+
+		[student@workstation role-create]$ cat inventory 
+
+			
+			[webservers]
+			servera.lab.example.com
+			
+
+		###########################################################################
+
+		role-create
+
+		|----------
+		|----------roles/
+		|	     |
+		|	     | ---/myvhost/
+		|	     |		|
+		|	     |		------tasks/
+		|	     |			|-----------main.yml
+		|	     |	        |----/handlers/
+		|	     |			|
+		|	     |			------main.yml 
+		|	                |----/templates/
+		|				|
+		|				------vhost.conf.j2
+		|			|---/files/
+		|				 |----html/
+		| 	 				|------ index.html	
+		|
+		|			|---/meta/
+		|			
+		|			|---/defaults/				---> deleted
+		|
+		|			|---/tests/				--> deleted			
+		|
+		|			|---/vars/				--> deleted
+		|
+		|
+		|---/files/
+		| 	|----html/
+		| 	 	|------ index.html	
+		|
+		|
+		|----use-vhost-role.yml
+		|----------
+		|			|
+		|			
+
+
+
+	###########################################################################
+	[student@workstation ~]$ cd ~/role-create
+	[student@workstation role-create]$ mkdir -v roles; cd roles
+
+	###########################################################################
+	[student@workstation roles]$ ansible-galaxy init myvhost
+
+
+	###########################################################################
+	[student@workstation roles]$ rm -rvf myvhost/{defaults,vars,tests}
+
+
+	###########################################################################
+2.1	[student@workstation roles]$ vim roles/myvhost/tasks/main.yml 
+
+
+		---
+		# tasks file for myvhost
+		- name: Ensure httpd is installed
+		  yum:
+			name: httpd
+			state: latest
+
+				###########################################################################
+		- name: Ensure httpd is started and enabled
+		  service:
+			name: httpd
+			state: started
+			enabled: true
+
+				###########################################################################
+
+		- name: vhost file is installed
+		  template:
+			src: vhost.conf.j2
+			dest: /etc/httpd/conf.d/vhost.conf
+			owner: root
+			group: root
+			mode: 0644
+		  notify:
+			- restart httpd
+
+				###########################################################################
+
+
+
+
+	###########################################################################
+2.2	[student@workstation roles]$vim roles/myvhost/handlers/main.yml 
+
+		---
+		# handlers file for myvhost
+		- name: restart httpd
+		  service:
+			name: httpd
+			state: restarted
+
+	###########################################################################
+2.3	[student@workstation role-create]$ mv -v 	vhost.conf.j2 	roles/myvhost/templates/
+
+
+
+	###########################################################################
+	[student@workstation role-create]$ mkdir -pv files/html
+
+
+	###########################################################################
+2.4	[student@workstation role-create]$ vim 	files/html/index.html
+
+						simple index
+
+
+	###########################################################################
+2.5	[student@workstation role-create]$ vim	use-vhost-role.yml
+
+		---
+		- name: Use myvhost role playbook
+		  hosts: webservers
+		  pre_tasks:
+			- name: pre_tasks message
+			  debug:
+				msg: 'Ensure web server configuration.'
+		  roles:
+			- myvhost
+
+		  post_tasks:
+
+			- name: HTML content is installed
+			  copy:
+				src: files/html/
+				dest: "/var/www/vhosts/{{ ansible_hostname }}"
+			- name: post_tasks message
+			  debug:
+				msg: 'Web server is configured.'
+
+
+
+
+	###########################################################################
+	[student@workstation role-create]$ ansible-playbook 	use-vhost-role.yml 	--syntax-check
+
+
+	###########################################################################
+	[student@workstation role-create]$ ansible-playbook 	use-vhost-role.yml
+
+
+
+	###########################################################################
+	[student@workstation role-create]$ ansible webservers 		-a  'systemctl is-active httpd'
+	[student@workstation role-create]$ ansible webservers 		-a  'systemctl is-enabled httpd'
+
+	[student@workstation role-create]$ ansible webservers 		-a  'cat /etc/httpd/conf.d/vhost.conf'
+
+	[student@workstation role-create]$ ansible webservers 		-a  'cat /var/www/vhosts/servera/index.html'
+
+	[student@workstation role-create]$ ansible webservers 	-m uri  -a 'url=http://localhost return_content=true'
+
+
+
+	[student@workstation role-create]$ curl http://servera.lab.example.com
+
+
+
+	###########################################################################
+
+
+
+
+	###########################################################################
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+LAB-3
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+		[student@workstation role-galaxy]$ cat ansible.cfg 
+			[defaults]
+			inventory=./inventory
+			remote_user=devops
+			#roles_path=./roles
+
+			#Try me...
+			#callback_whitelist=profile_tasks
+
+			[privilege_escalation]
+			become=True
+			become_method=sudo
+			become_user=root
+			become_ask_pass=False
+
+
+
+
+		[student@workstation role-galaxy]$ cat inventory 
+
+			workstation.lab.example.com
+
+			[devservers]
+			servera.lab.example.com
+			
+
+
+	###########################################################################
+
+		role-galaxy
+
+		|----------
+		|----------/roles/
+		|	     |
+		|	     |
+		|	     |----/requirements.yml
+		|	     |
+		|	     |---/student.bash_env/
+		|	     |		|
+		|	     |		------templates/
+		|	     |			|-----------/_bash_profile.j2
+		|
+		|
+		|
+		|
+		|----------/use-bash-env-role.yml
+		|----------
+		|			
+		|			
+
+
+		###########################################################################
+3.1		[student@workstation role-galaxy]$vim roles/requirements.yml 
+
+			---
+			# requirements.yml
+			- src: git@workstation.lab.example.com:student/bash_env
+			  scm: git
+			  version: master
+			  name: student.bash_env
+
+					------------------------------------------------------------------------------------------------
+
+					[student@workstation role-galaxy]$ ls roles/
+
+						requirements.yml 
+
+					###########################################################################
+
+					[student@workstation role-galaxy]$ ansible-galaxy	search		'redis' --platforms EL
+					[student@workstation role-galaxy]$ ansible-galaxy	info		geerlingguy.redis
+					[student@workstation role-galaxy]$ ansible-galaxy	install		geerlingguy.redis -p roles/			
+					[student@workstation role-galaxy]$ ansible-galaxy	remove		geerlingguy.redis
+
+					[student@workstation role-galaxy]$ ansible-galaxy 	install 	-r roles/requirements.yml 	-p roles
+
+					------------------------------------------------------------------------------------------------
+
+					[student@workstation role-galaxy]$ ls roles/
+	
+						requirements.yml student.bash_env
+
+					###########################################################################
+					[student@workstation role-galaxy]$ ansible-galaxy 	list
+
+
+
+					###########################################################################
+3.2					[student@workstation role-galaxy]$vim use-bash_env-role.yml
+
+					---
+					- name: use student.bash_env role playbook
+					  hosts: devservers
+					  vars:
+						#prompt_color: blue
+						default_prompt: '[\u on \h in \W dir]\$ '
+
+					  pre_tasks:
+						- name: Ensure test user does not exist
+						  user:
+							name: student2
+							state: absent
+							force: yes
+							remove: yes
+					  roles:
+						- student.bash_env
+					  post_tasks:
+						- name: Create the test user
+						  user:
+							name: student2
+							state: present
+							password: "{{ 'redhat' | password_hash('sha512', 'mysecretsalt') }}"
+
+
+
+					###########################################################################
+					[student@workstation role-galaxy]$ ansible-playbook 	use-bash_env-role.yml
+	
+					###########################################################################
+					[student@workstation role-galaxy]$ ssh student2@servera
+
+		###########################################################################
+3.1		[student@workstation role-galaxy]$ vim roles/requirements.yml 
+
+		---
+		# requirements.yml
+		- src: git@workstation.lab.example.com:student/bash_env
+		  	scm: git
+			version: dev
+			name: student.bash_env
+
+
+
+				###########################################################################
+				[student@workstation role-galaxy]$ ansible-galaxy 	install  	-r roles/requirements.yml 	--force 	-p roles
+				[student@workstation role-galaxy]$ ansible-galaxy 	install  	-r roles/requirements.yml 		 	-p roles
+				[student@workstation role-galaxy]$ ansible-galaxy 	init 		apache.developer_configs
+
+
+				###########################################################################
+3.2				[student@workstation role-galaxy]$ vim use-bash_env-role.yml 
+		
+					prompt_color: blue		 
+
+				###########################################################################
+				[student@workstation role-galaxy]$ ansible-playbook 	use-bash_envrole.yml
+
+				###########################################################################
+				[student@workstation role-galaxy]$ ssh student2@servera
+
+				###########################################################################
+3.3				[student@workstation role-galaxy]$ vim	roles/student.bash_env/templates/_bash_profile.j2 
+
+					# .bash_profile
+					# Get the aliases and functions
+					if [ -f ~/.bashrc ]; then
+						. ~/.bashrc
+					fi
+					# User specific environment and startup programs
+					PATH=$PATH:$HOME/.local/bin:$HOME/bin
+					export PATH
+
+
+				###########################################################################
+				[student@workstation role-galaxy]$ ansible-playbook use-bash_envrole.yml
+
+				###########################################################################
+				[student@workstation role-galaxy]$ ssh student2@servera
+
+				###########################################################################
+
+		
+				###########################################################################
+
+
+
+				###########################################################################
+
+
+
+				###########################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	###########################################################################
+
+
+
+	###########################################################################
+
+
+
+	###########################################################################
+
+
+
+
+	###########################################################################
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+####################################################################################################################################################################
+####################################################################################################################################################################
+
+
+
+	###########################################################################
+
+
+
+
+	###########################################################################
+
+
+
+
+
+	###########################################################################
+
+
+
+
+
+	###########################################################################
